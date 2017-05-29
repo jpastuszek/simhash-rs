@@ -3,14 +3,26 @@
 // Ported to Rust 1.16.0 by Jakub Pastuszek on 29/05/2017
 // With the help of http://matpalm.com/resemblance/simhash/
 
+#[cfg(all(feature = "hasher-sip", not(feature = "hasher-fnv")))]
 extern crate siphasher;
+#[cfg(all(feature = "hasher-fnv", not(feature = "hasher-sip")))]
+extern crate fnv;
 
 use std::hash::{Hash, Hasher};
-// Note: stdlib no longer exposes SipHasher directly
-use siphasher::sip::SipHasher;
 
-fn h<T: Hash>(t: &T) -> u64 {
+// Note: stdlib no longer exposes SipHasher directly
+#[cfg(all(feature = "hasher-sip", not(feature = "hasher-fnv")))]
+fn hash_feature<T: Hash>(t: &T) -> u64 {
+    use siphasher::sip::SipHasher;
     let mut s = SipHasher::default();
+    t.hash(&mut s);
+    s.finish()
+}
+
+#[cfg(all(feature = "hasher-fnv", not(feature = "hasher-sip")))]
+fn hash_feature<T: Hash>(t: &T) -> u64 {
+    use fnv::FnvHasher;
+    let mut s = FnvHasher::default();
     t.hash(&mut s);
     s.finish()
 }
@@ -23,7 +35,7 @@ pub fn simhash_stream<'w, W>(words: W) -> u64
     let mut simhash: u64 = 0;
 
     for feature in words {
-        let feature_hash: u64 = h(&feature);
+        let feature_hash: u64 = hash_feature(&feature);
 
         for i in 0..64 {
             let bit = (feature_hash >> i) & 1;
@@ -80,10 +92,19 @@ pub fn similarity(text1: &str, text2: &str) -> f64 {
 }
 
 #[test]
+#[cfg(all(feature = "hasher-sip", not(feature = "hasher-fnv")))]
 fn simhash_test() {
     assert_eq!(simhash("The cat sat on the mat"), 2595200813813010837);
     assert_eq!(simhash("The cat sat under the mat"), 2595269945604666783);
     assert_eq!(simhash("Why the lucky stiff"), 1155526875459215761);
+}
+
+#[test]
+#[cfg(all(feature = "hasher-fnv", not(feature = "hasher-sip")))]
+fn simhash_test() {
+    assert_eq!(simhash("The cat sat on the mat"), 1245844084707839512);
+    assert_eq!(simhash("The cat sat under the mat"), 102053001967980056);
+    assert_eq!(simhash("Why the lucky stiff"), 369356755250006160);
 }
 
 #[test]
@@ -103,6 +124,6 @@ fn hash_similarity_test() {
 #[test]
 fn similarity_test() {
     assert_eq!(similarity("Stop hammertime", "Stop hammertime"), 1.0);
-    assert!(similarity("Hocus pocus", "Hocus pocus pilatus pas") > 0.9);
+    assert!(similarity("Hocus pocus", "Hocus pocus pilatus pas") > 0.7);
     assert!(similarity("Peanut butter", "Strawberry cocktail") < 0.6);
 }
