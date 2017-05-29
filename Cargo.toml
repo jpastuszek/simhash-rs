@@ -1,5 +1,8 @@
 [package]
-
+authors = ["Bart Olsthoorn <bartolsthoorn@gmail.com>", "Jakub Pastuszek <jpastuszek@gmail.com>"]
+license = "MIT"
 name = "simhash"
-version = "0.1.0"
-authors = ["Bart Olsthoorn <bartolsthoorn@gmail.com>"]
+version = "0.2.0"
+
+[dependencies]
+siphasher = "0.2.2"
